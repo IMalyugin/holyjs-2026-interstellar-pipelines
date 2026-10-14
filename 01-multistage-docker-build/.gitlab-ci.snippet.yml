@@ -1,0 +1,5 @@
+build:
+  script:
+    - buildah login ...
+    - buildah bud -t final-image
+    - buildah push final-image
