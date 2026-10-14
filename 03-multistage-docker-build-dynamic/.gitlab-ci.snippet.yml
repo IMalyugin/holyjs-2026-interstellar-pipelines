@@ -1,0 +1,23 @@
+prebuild:
+  script:
+    - buildah login ...
+    - buildah bud -t base-images:runtime --target=runtime
+    - buildah bud -t base-images:builder --target=builder --build-arg BUILDER_BASE=base-images:runtime
+    - buildah push base-images:builder
+    - buildah push base-images:runtime
+  rules:
+    - if: $CI_COMMIT_BRANCH != "dev"
+      when: never
+    - changes:
+        - .gitlab-ci.yml
+        - Dockerfile
+        - yarn.lock
+    - when: manual
+
+build:
+  script:
+    - buildah login ...
+    - buildah pull base-images:runtime
+    - buildah pull base-images:builder
+    - buildah bud -t final-image --build-arg RUNTIME_BASE=base-images:runtime --build-arg BUILDER_BASE=base-images:builder
+    - buildah push final-image

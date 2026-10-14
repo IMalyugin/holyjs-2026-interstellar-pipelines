@@ -11,5 +11,5 @@ FROM node:24
 COPY package.json yarn.lock ./
 RUN yarn install --production
 
-COPY --from=builder build build
+COPY --from=builder dist dist
 
