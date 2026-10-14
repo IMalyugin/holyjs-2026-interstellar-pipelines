@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if [[ -z "${IS_INITIALIZED:-}" ]]; then
+  SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
+  source "${SCRIPT_PATH%/*/*}/lib/ci-helpers/core.sh"
+  source "${SCRIPT_PATH%/*/*}/lib/ci-helpers/gates.sh"
+  source "${SCRIPT_PATH%/*/*}/lib/ci-helpers/log.sh"
+fi
+
+tool=${1:-}
+shift
+
+source "$(get_method_file ci-tools '<tool>' "${tool}")"
