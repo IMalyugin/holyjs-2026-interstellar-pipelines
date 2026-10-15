@@ -1,0 +1,69 @@
+default:
+  image: harbor.domain/project/base-images:builder
+  before_script:
+    - eval "$(ci-tools setup)"
+stages:
+  - build
+  - publish
+  - prebuild
+  - prewarm
+
+build:
+  stage: build
+  script:
+    - ci-tools version
+    - ci-tools pipeline rename "Building $VERSION" &
+    - ci-lifecycle build
+    - ci-buildah init
+    - ci-buildah bud --target $BUILD_TARGET --from=base-images:runtime
+    - ci-buildah push
+
+publish:
+  stage: publish
+  needs: []
+  script:
+    - yarn ci-publish
+
+prebuild_runner:
+  stage: prebuild
+  image:
+    name: harbor.domain/common/b2c/node:24-builder
+    pull_policy: always
+  allow_failure: true
+  before_script:
+    - eval "$(ci-tools setup --skip-install --from ref:3.62.0)"
+  script:
+    - ci-tools version builder
+    - ci-tools pipeline rename "Rebuilding base image" &
+    - ci-buildah init
+    - ci-buildah bud --target runtime -t base-images:runtime
+    - ci-tools util normalize-mtime ../cache &
+    - ci-buildah backup; wait
+    - ci-buildah bud --target builder -t base-images:builder --from=base-images:runtime
+    - ci-buildah push base-images:builder
+    - ci-buildah push base-images:runtime
+  rules:
+    - if: $CI_COMMIT_BRANCH != "dev"
+      when: never
+    - changes:
+        - .gitlab-ci.yml
+        - Dockerfile
+        - yarn.lock
+    - when: manual
+
+
+prewarm_runner:
+  stage: prewarm
+  image:
+    name: harbor.domain/project/base-images:builder
+    pull_policy: always
+  allow_failure: true
+  variables:
+    KUBERNETES_NODE_SELECTOR_HOSTNAME: "kubernetes.io/hostname=community-gitlab-worker$WORKER"
+  script:
+    - echo "Worker hot and ready"
+  parallel:
+    matrix:
+      - WORKER: ["01", "02", "03", "04", "05"]
+
+
